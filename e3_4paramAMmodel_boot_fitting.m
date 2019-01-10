@@ -1,7 +1,3 @@
-%%% Note: This is the Dual Error model in the manuscript. Originally, it
-%%% was referred to as the Implicit Aim ("i.e., IA model"); however, we
-%%% have since went with the name "Dual Error" as we are agnostic as to
-%%% whether the second model-based process is a form of aiming or not.
 
 function tgtsize_SSM_fitting
 
@@ -72,6 +68,7 @@ for i=1:nBoot
             
             %%%add AIC%%%
             aic = 2*num_params + length(hand_data(:))*log(sq_err/length(hand_data(:)));
+            
         end
         
         temp_best_err(iteration,1) = best_err;
@@ -82,19 +79,19 @@ for i=1:nBoot
     end
     
     [~,bestidx] = min(temp_best_err);
-    bestparams_IA_boot(i,:) = temp_bestparams(bestidx,:);
-    r2_IA_boot(i,1) = temp_r2(bestidx);
-    aic_IA_boot(i,1) = temp_aic(bestidx);
+    bestparams_4paramAM_boot(i,:) = temp_bestparams(bestidx,:);
+    r2_4paramAM_boot(i,1) = temp_r2(bestidx);
+    aic_4paramAM_boot(i,1) = temp_aic(bestidx);
     
 end
 
-save e3_IA_params_boot_params bestparams_IA_boot r2_IA_boot aic_IA_boot
+save e3_4paramAM_boot_params bestparams_4paramAM_boot bootHandData r2_4paramAM_boot aic_4paramAM_boot 
 
 
 for i=1:nBoot
        
-    sims(i,:) = implicitAim(bestparams_IA_boot(i,:),bootHandData(i,11:210),clamp_angle,group(1),rwd(1,:));
-    sims(i+nBoot,:) = implicitAim(bestparams_IA_boot(i,:),bootHandData(i+nBoot,11:210),clamp_angle,group(2),rwd(2,:));
+    sims(i,:) = adaptationModulation_4params(bestparams_4paramAM_boot(i,:),bootHandData(i,11:210),clamp_angle,group(1),rwd(1,:));
+    sims(i+nBoot,:) = adaptationModulation_4params(bestparams_4paramAM_boot(i,:),bootHandData(i+nBoot,11:210),clamp_angle,group(2),rwd(2,:));
     
 end
 
@@ -108,57 +105,55 @@ ylabel('Hand Angle (deg)')
 
 end
 
+
 %Cost fxn
 function [sq_err, simulations] = squared_err(params, hand_data, rot, group, rwd)
 
 % Simulate behavior from initial parameters
-simulations = implicitAim(params, hand_data, rot, group, rwd);
+simulations = adaptationModulation_4params(params, hand_data, rot, group, rwd);
 
 % Calculate Squared Error - between data and simulation
-sq_err = nansum(nansum((hand_data - simulations).^2)) ;
+sq_err = nansum(nansum ( (hand_data - simulations).^2) ) ;
 
 end
 
-%Simulator
-function simulations = implicitAim(params, hand_data, rot, group, rwd)
 
-Aspe = params(1);
-Atpe = params(2);
-Uspe = params(3);
-Utpe = params(4);
+%Simulator
+function simulations = adaptationModulation_4params(params, hand_data, rot, group, rwd)
 
 num_trials = size(hand_data, 2);
 
 % Load Initial Values
 error = rot;
 
+%Note: Umiss and Uhit could also be interpreted as gmiss*U or ghit*U (i.e.,
+%as having separate gain factors on update; this is how it's described in
+%paper)
 x(1) = 0; 
-x_spe(1) = 0;
-x_tpe(1) = 0;
+Amiss = params(1);
+Ahit = params(2);
+Umiss = params(3);
+Uhit = params(4);
 
 for n = 1:size(hand_data,1)
- 
+    
     grp=group(n);
     reward=rwd(n,:);
     
     for i = 1:num_trials-1
         if reward(i)==1
-            x_tpe(i+1) = Atpe*x_tpe(i);
+            x(i+1) = Ahit*x(i) + Uhit;
         elseif reward(i)==0
-            x_tpe(i+1) = Atpe*x_tpe(i) + Utpe;
+            x(i+1) = Amiss*x(i) + Umiss;
         end
-        
-        x_spe(i+1) = Aspe*x_spe(i) + Uspe;
-        
-        x(i+1) = x_tpe(i+1) + x_spe(i+1);
-        
     end
-    
+
     simulations(n,:) = x;
     
 end
 
 end
+
 
 
 
