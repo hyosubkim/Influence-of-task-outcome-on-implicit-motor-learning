@@ -2,5 +2,6 @@
 
 Code and data used for manuscript: "Influence of task outcome on implicit motor learning".
 
-* All code labeled '*_analyze' are for analysis of behavioral results
-* '*_group_
+* All '*_analyze.m' code are for analyzing behavioral results
+* '*_group_fitting.m' code are fitting models to group averaged data
+* '
